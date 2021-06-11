@@ -555,7 +555,7 @@ int main(int num_argumentos, char* argumentos[])
 					printf("\tFactor de diezmacion (k > 0): "); 
 					scanf("%d", &factor_diezmacion); 
 					resultado.diezmar(factor_diezmacion);  
-					cout << "\n\t\t" << BG_WHITE FG_GREEN " " <<  a << " " NONE << "\n\n"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " <<  resultado << " " NONE << "\n\n"; 
 					if(graficar) 
 						graficar_op_unaria(gnuplot, a, resultado); 
 					break;
