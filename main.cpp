@@ -3,6 +3,8 @@
 #include<cstdio>
 #include<string> 
 #include<fstream>
+#include<unistd.h>
+#include"colores.h"
 
 using namespace std;
 
@@ -215,7 +217,7 @@ class Secuencia
 	void interpolacion_lineal(int k)
 	{
 		vector<float> muestras_interpoladas;
-	        for(int i = menor_indice();  i <= mayor_indice(); i++) 
+	        for(int i = menor_indice() - 1;  i <= mayor_indice(); i++) 
 		{
 			float adyacente_izquierdo = (*this)[i]; 
 			float adyacente_derecho = (*this)[i + 1];
@@ -282,12 +284,46 @@ ostream& operator<<(ostream& os, Secuencia a)
 	return os; 
 }
 
-void graficar_señal(FILE* gnuplot, string señal_txt) 
+void graficar_señal(FILE* gnuplot, string nombre, int minimo_x, int maximo_x, string señal_txt) 
 {
-	fprintf(gnuplot, "plot \"%s\" with impulses lw 3, \"%s\" with points pt 7 ps 2\n", señal_txt.c_str(), señal_txt.c_str());
+	fprintf(gnuplot, "plot [%d:%d] \"%s\" title \"%s\" with impulses lw 3, \"%s\" title \"\" with points pt 7 ps 1\n", minimo_x, maximo_x, señal_txt.c_str(), nombre.c_str(), señal_txt.c_str());
 	fflush(gnuplot); 
-
 }
+
+void graficar_op_unaria(FILE* gnuplot, Secuencia a, Secuencia resultado)
+{
+	a.imprimir_secuencia_txt("a.txt"); 
+	resultado.imprimir_secuencia_txt("resultado.txt");
+
+	fprintf(gnuplot, "set term pdfcairo\n");
+	fprintf(gnuplot, "set output \"grafica.pdf\"\n");
+	fprintf(gnuplot, "set multiplot layout 1,2 columnsfirst\n");
+	graficar_señal(gnuplot, a.nombre, a.menor_indice() - 2, a.mayor_indice() + 2, "a.txt");	
+	graficar_señal(gnuplot, resultado.nombre, resultado.menor_indice() - 2, resultado.mayor_indice() + 2, "resultado.txt");	
+	fprintf(gnuplot, "unset multiplot\n");
+	fprintf(gnuplot, "set output\n");
+	fflush(gnuplot);
+	system("xdg-open grafica.pdf");
+}
+
+void graficar_op_binaria(FILE* gnuplot, Secuencia a, Secuencia b, Secuencia resultado)
+{
+	a.imprimir_secuencia_txt("a.txt"); 
+	b.imprimir_secuencia_txt("b.txt"); 
+	resultado.imprimir_secuencia_txt("resultado.txt");
+
+	fprintf(gnuplot, "set term pdfcairo\n");
+	fprintf(gnuplot, "set output \"grafica.pdf\"\n");
+	fprintf(gnuplot, "set multiplot layout 2,2 columnsfirst\n");
+	graficar_señal(gnuplot, a.nombre, a.menor_indice() - 2, a.mayor_indice() + 2, "a.txt");	
+	graficar_señal(gnuplot, b.nombre, b.menor_indice() - 2, b.mayor_indice() + 2, "b.txt");	
+	graficar_señal(gnuplot, resultado.nombre, resultado.menor_indice() - 2, resultado.mayor_indice() + 2, "resultado.txt");	
+	fprintf(gnuplot, "unset multiplot\n");
+	fprintf(gnuplot, "set output\n");
+	fflush(gnuplot);
+	system("xdg-open grafica.pdf");
+}
+
 
 void imprimir_menu()
 {
@@ -304,7 +340,14 @@ int main(int num_argumentos, char* argumentos[])
 {
 	char opcion; 
 	string vacia;
-
+	bool graficar = false; 
+	if(num_argumentos > 1) 
+	{
+		if(string(argumentos[1]) == "-g")
+			graficar = true; 
+	}
+	FILE* gnuplot = popen("gnuplot", "w"); 
+	
 	printf("\n\t\tOPERACIONES BASICAS CON SECUENCIAS"); 
 
 	printf("\n\nSeleccione una opcion del siguiente del menú:"); 
@@ -344,13 +387,19 @@ int main(int num_argumentos, char* argumentos[])
 				case '1':
 				{
 					Secuencia resultado = a + b; 
-					cout << "\n\t\t" << a.nombre << " + " << b.nombre <<  resultado << "\n"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " << a.nombre << " + " << b.nombre <<  resultado << " " NONE << "\n\n";
+					resultado.nombre = a.nombre + " + " + b.nombre; 
+				       	if(graficar) 
+						graficar_op_binaria(gnuplot, a, b, resultado); 
 					break;
 				}
 				case '2':
 				{
 					Secuencia resultado = a - b; 
-					cout << "\n\t\t" << a.nombre << " - " << b.nombre << resultado << "\n"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " << a.nombre << " - " << b.nombre <<  resultado << " " NONE << "\n\n";
+					resultado.nombre = a.nombre + " - " + b.nombre; 
+				       	if(graficar) 
+						graficar_op_binaria(gnuplot, a, b, resultado); 
 					break; 
 				}
 				default: 
@@ -392,7 +441,10 @@ int main(int num_argumentos, char* argumentos[])
 					Secuencia b(secuencia_b); 
 				
 					Secuencia resultado = a * b; 
-					cout << "\n\t\t" << a.nombre << " x " << b.nombre <<  resultado << "\n"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " << a.nombre << " x " << b.nombre <<  resultado << " " NONE << "\n\n";
+					resultado.nombre = a.nombre + " x " + b.nombre; 
+				       	if(graficar) 
+						graficar_op_binaria(gnuplot, a, b, resultado); 
 					break;
 				}
 				case '2':
@@ -407,7 +459,10 @@ int main(int num_argumentos, char* argumentos[])
 				       	printf("\tFactor de amplificacion (k > 1): "); 
 					scanf("%f", &factor_amplificacion); 
 					Secuencia resultado = a * factor_amplificacion; 
-					cout << "\n\t\t" << factor_amplificacion << resultado << "\n"; 
+					resultado.nombre = a.nombre + " amplificada"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " << factor_amplificacion << resultado << " " NONE << "\n\n"; 
+				       	if(graficar) 
+						graficar_op_unaria(gnuplot, a, resultado); 
 					break; 
 				}
 				case '3':
@@ -423,7 +478,10 @@ int main(int num_argumentos, char* argumentos[])
 					scanf("%f", &factor_atenuacion); 
 				       	factor_atenuacion = 1 / factor_atenuacion;	
 					Secuencia resultado = a * factor_atenuacion; 
-					cout << "\n\t\t" << factor_atenuacion << resultado << "\n";
+					resultado.nombre = a.nombre + " atenuada"; 
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " << factor_atenuacion << resultado << " " NONE << "\n\n";
+				       	if(graficar) 
+						graficar_op_unaria(gnuplot, a, resultado); 
 				        break;	
 				}
 				default: 
@@ -443,8 +501,12 @@ int main(int num_argumentos, char* argumentos[])
 			printf("\n\n\tSecuencia: "); 
 			getline(cin, secuencia_a); 
 			Secuencia a(secuencia_a);
-			a.reflejar();
-			cout << "\n\t\t" << a << "\n"; 
+			Secuencia resultado = a; 
+			resultado.reflejar();
+			resultado.nombre = a.nombre + " reflejada"; 
+			cout << "\n\t\t" << BG_WHITE FG_GREEN " " << resultado << " " NONE <<  "\n\n"; 
+			if(graficar) 
+				graficar_op_unaria(gnuplot, a, resultado); 
 			break; 
 		}
 		case 'd':
@@ -455,12 +517,15 @@ int main(int num_argumentos, char* argumentos[])
 			printf("\n\n\tSecuencia: "); 
 			getline(cin, secuencia_a); 
 			Secuencia a(secuencia_a);
-
+			Secuencia resultado = a; 
+			resultado.nombre = a.nombre + " desplazada"; 
 			int n0; 
 			printf("\n\n\tIngrese un entero n0 x(n - n0): "); 
 			scanf("%d", &n0); 
-			a.desplazar(n0);
-			cout << "\n\t\t" << a << "\n"; 
+			resultado.desplazar(n0);
+			cout << "\n\t\t" << BG_WHITE FG_GREEN " " <<  resultado << " " NONE << "\n\n"; 
+			if(graficar) 
+				graficar_op_unaria(gnuplot, a, resultado); 
 			break; 
 		}
 		case 'e':
@@ -485,10 +550,14 @@ int main(int num_argumentos, char* argumentos[])
 					printf("\n\n\tSecuencia: "); 
 					getline(cin, secuencia_a); 
 					Secuencia a(secuencia_a);
+					Secuencia resultado = a; 
+					resultado.nombre = a.nombre + " diezmada"; 
 					printf("\tFactor de diezmacion (k > 0): "); 
 					scanf("%d", &factor_diezmacion); 
-					a.diezmar(factor_diezmacion);  
-					cout << "\n\t\t" << a << "\n"; 
+					resultado.diezmar(factor_diezmacion);  
+					cout << "\n\t\t" << BG_WHITE FG_GREEN " " <<  a << " " NONE << "\n\n"; 
+					if(graficar) 
+						graficar_op_unaria(gnuplot, a, resultado); 
 					break;
 				}
 				case '2':
@@ -499,6 +568,8 @@ int main(int num_argumentos, char* argumentos[])
 					printf("\n\n\tSecuencia: "); 
 					getline(cin, secuencia_a); 
 					Secuencia a(secuencia_a);
+					Secuencia resultado = a; 
+					resultado.nombre = a.nombre + " interpolada"; 
 					int factor_interpolacion;  
 					printf("\tFactor de interpolacion (k > 0): "); 
 					scanf("%d", &factor_interpolacion);
@@ -517,20 +588,26 @@ int main(int num_argumentos, char* argumentos[])
 					{
 						case '1':
 						{
-							a.interpolacion_cero(factor_interpolacion); 
-							cout << "\n\t\t" << a << "\n"; 
+							resultado.interpolacion_cero(factor_interpolacion); 
+							cout << "\n\t\t" << BG_WHITE FG_GREEN " " << resultado << " " NONE << "\n\n"; 
+							if(graficar) 
+								graficar_op_unaria(gnuplot, a, resultado); 
 							break;
 						}
 						case '2':
 						{
-							a.interpolacion_escalon(factor_interpolacion); 
-							cout << "\n\t\t" << a << "\n"; 
+							resultado.interpolacion_escalon(factor_interpolacion); 
+							cout << "\n\t\t" << BG_WHITE FG_GREEN " " << resultado << " " NONE << "\n\n"; 
+							if(graficar) 
+								graficar_op_unaria(gnuplot, a, resultado); 
 							break;
 						}
 						case '3': 
 						{
-							a.interpolacion_lineal(factor_interpolacion); 
-							cout << "\n\t\t" << a << "\n"; 
+							resultado.interpolacion_lineal(factor_interpolacion); 
+							cout << "\n\t\t" << BG_WHITE FG_GREEN " " << resultado << " " NONE << "\n\n"; 
+							if(graficar) 
+								graficar_op_unaria(gnuplot, a, resultado); 
 							break; 
 						}
 						default: 
@@ -538,7 +615,7 @@ int main(int num_argumentos, char* argumentos[])
 							break; 
 						}
 					}	
-		 
+
 
 					break; 
 				}
@@ -548,6 +625,7 @@ int main(int num_argumentos, char* argumentos[])
 					break; 
 				}
 			}
+			break;
 		 
 		}
 		case 'f': 
@@ -564,8 +642,10 @@ int main(int num_argumentos, char* argumentos[])
 			Secuencia b(secuencia_b);
 
 			Secuencia resultado = a.convolucion(b);  
-			cout << "\n\t\t" << a.nombre << " * " << b.nombre <<  resultado << "\n"; 
-
+			cout << "\n\t\t" << BG_WHITE FG_GREEN " " << a.nombre << " * " << b.nombre <<  resultado << " " NONE << "\n\n";
+			resultado.nombre = a.nombre + " * " + b.nombre; 
+			if(graficar) 
+				graficar_op_binaria(gnuplot, a, b, resultado); 
 			break; 
 		}
 		default: 
@@ -574,29 +654,5 @@ int main(int num_argumentos, char* argumentos[])
 		}
 	}
 
-
-
-/*	Secuencia a(4, {-4, -3, -2, -1, 0, 1, 2, 3});
-	a.nombre = "a";
-	Secuencia b("b={-1, 2.5, 3.14, 1, -7, 4, 3*, 1.3}"); 
-	Secuencia c = a + b; 
-	cout << (a + b) << endl; 
-	cout << (a - b) << endl;
-	cout << (a * b) << endl; // -12.42 -3 14 -4 0 1.3
-	cout << (a * 2) << endl;
-	cout << a << endl; 
-	a.imprimir_secuencia_txt("a.txt"); 
-	b.imprimir_secuencia_txt("b.txt");
-       	c.imprimir_secuencia_txt("c.txt"); 	
-
-	FILE* gnuplot = popen("gnuplot", "w"); 
-	fprintf(gnuplot, "set multiplot layout 2,2 columnsfirst\n");
-	graficar_señal(gnuplot, "a.txt");	
-	graficar_señal(gnuplot, "b.txt"); 
-	graficar_señal(gnuplot, "c.txt"); 
-	fprintf(gnuplot, "unset multiplot\n");
-	fflush(gnuplot);
-       	int n; cin >> n; 	
-*/
 	return 0; 
 }
